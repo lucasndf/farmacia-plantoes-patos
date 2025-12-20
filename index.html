@@ -29,11 +29,11 @@
 
   <!-- Registro do Service Worker -->
   <script>
-    if ("serviceWorker" in navigator) {
-      navigator.serviceWorker.register("service-worker.js")
-        .then(() => console.log("SW registrado"))
-        .catch(err => console.log("Erro SW:", err));
-    }
+if ("serviceWorker" in navigator) {
+  navigator.serviceWorker.register("./sw-public.js", {
+    scope: "./"
+  });
+}
   </script>
 
   <style>
@@ -861,13 +861,6 @@ setInterval(() => {
   try { renderToday(); } catch {}
 }, 60000);
   
-if ("serviceWorker" in navigator) {
-  navigator.serviceWorker.register("./sw-public.js", {
-    scope: "./"
-  });
-}
-
 </script>
-
 </body>
 </html>
