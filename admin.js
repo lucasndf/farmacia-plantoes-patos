@@ -22,7 +22,7 @@ const modalTitle = document.getElementById("modalTitle");
 // FIRESTORE
 const db = firebase.firestore();
 
-// CACHE EM MEMÓRIA (não local)
+// CACHE EM MEMÓRIA
 let listaAtual = [];
 
 // =======================================================
@@ -74,11 +74,14 @@ modalImportBg.addEventListener("click", e => {
 // =======================================================
 window.importarLista = async function () {
   const texto = importTextarea.value.trim();
-  if (!texto) return alert("Cole o JSON da lista.");
+  if (!texto) {
+    alert("Cole o JSON da lista.");
+    return;
+  }
 
   try {
     const json = JSON.parse(texto);
-    if (!Array.isArray(json)) throw "";
+    if (!Array.isArray(json)) throw new Error();
 
     for (const p of json) {
       if (!p.date || !p.farmacia || !p.area) continue;
@@ -92,10 +95,11 @@ window.importarLista = async function () {
       });
     }
 
+    importTextarea.value = "";
     modalImportBg.style.display = "none";
     alert("Lista importada com sucesso!");
 
-  } catch {
+  } catch (err) {
     alert("JSON inválido.");
   }
 };
@@ -104,6 +108,8 @@ window.importarLista = async function () {
 //  FILTRO POR MÊS
 // =======================================================
 function atualizarFiltroMes(lista) {
+  if (!filtroMes) return;
+
   const meses = [...new Set(lista.map(p => p.date.slice(0, 7)))].sort();
 
   filtroMes.innerHTML =
@@ -111,14 +117,16 @@ function atualizarFiltroMes(lista) {
     meses.map(m => `<option value="${m}">${m}</option>`).join("");
 }
 
-filtroMes.addEventListener("change", () => renderTabela());
+if (filtroMes) {
+  filtroMes.addEventListener("change", () => renderTabela());
+}
 
 // =======================================================
 //  RENDER TABELA
 // =======================================================
 function renderTabela() {
   let lista = [...listaAtual];
-  const mes = filtroMes.value;
+  const mes = filtroMes ? filtroMes.value : "";
 
   if (mes) {
     lista = lista.filter(p => p.date.startsWith(mes));
@@ -146,7 +154,6 @@ function renderTabela() {
 // =======================================================
 window.excluir = async function (id) {
   if (!confirm("Tem certeza que deseja excluir este plantão?")) return;
-
   await db.collection("plantoes").doc(id).delete();
 };
 
@@ -168,12 +175,11 @@ window.savePlantao = async function () {
   }
 
   await db.collection("plantoes").doc(novo.date).set(novo);
-
   modalBg.style.display = "none";
 };
 
 // =======================================================
-//  LISTENER EM TEMPO REAL (CORE DO SISTEMA)
+//  LISTENER EM TEMPO REAL (CORE)
 // =======================================================
 db.collection("plantoes")
   .orderBy("date")
