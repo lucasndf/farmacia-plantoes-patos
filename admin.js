@@ -4,10 +4,6 @@
 
 let editId = null;
 
-// FIRESTORE
-const db = firebase.firestore();
-const colRef = db.collection("plantoes");
-
 // ELEMENTOS
 const tabela = document.querySelector("#tabela tbody");
 const modalBg = document.getElementById("modalBg");
@@ -23,23 +19,27 @@ const inpArea = document.getElementById("inpArea");
 
 const modalTitle = document.getElementById("modalTitle");
 
-// CACHE EM MEMÓRIA (não é LocalStorage)
-let listaCache = [];
+// FIRESTORE
+const db = firebase.firestore();
+
+// CACHE EM MEMÓRIA (não local)
+let listaAtual = [];
 
 // =======================================================
-//  ABRIR MODAL
+//  MODAL NOVO / EDITAR
 // =======================================================
 window.openModal = function (id = null) {
   editId = id;
 
   if (id) {
-    const p = listaCache.find(x => x.id === id);
-    modalTitle.textContent = "Editar Plantão";
+    const p = listaAtual.find(x => x.id === id);
+    if (!p) return;
 
+    modalTitle.textContent = "Editar Plantão";
     inpDate.value = p.date;
     inpFarm.value = p.farmacia;
-    inpEnd.value = p.endereco;
-    inpTel.value = p.telefone;
+    inpEnd.value = p.endereco || "";
+    inpTel.value = p.telefone || "";
     inpArea.value = p.area;
   } else {
     modalTitle.textContent = "Novo Plantão";
@@ -80,23 +80,19 @@ window.importarLista = async function () {
     const json = JSON.parse(texto);
     if (!Array.isArray(json)) throw "";
 
-    const batch = db.batch();
+    for (const p of json) {
+      if (!p.date || !p.farmacia || !p.area) continue;
 
-    json.forEach(p => {
-      const ref = colRef.doc(p.date); // usa a data como ID
-      batch.set(ref, {
+      await db.collection("plantoes").doc(p.date).set({
         date: p.date,
         farmacia: p.farmacia,
-        endereco: p.endereco,
-        telefone: p.telefone,
+        endereco: p.endereco || "",
+        telefone: p.telefone || "",
         area: p.area.toUpperCase()
       });
-    });
-
-    await batch.commit();
+    }
 
     modalImportBg.style.display = "none";
-    await carregarDados();
     alert("Lista importada com sucesso!");
 
   } catch {
@@ -107,24 +103,26 @@ window.importarLista = async function () {
 // =======================================================
 //  FILTRO POR MÊS
 // =======================================================
-function atualizarFiltroMes() {
-  const meses = [...new Set(listaCache.map(p => p.date.slice(0, 7)))].sort();
+function atualizarFiltroMes(lista) {
+  const meses = [...new Set(lista.map(p => p.date.slice(0, 7)))].sort();
 
   filtroMes.innerHTML =
     `<option value="">Todos</option>` +
     meses.map(m => `<option value="${m}">${m}</option>`).join("");
 }
 
-filtroMes.addEventListener("change", renderTabela);
+filtroMes.addEventListener("change", () => renderTabela());
 
 // =======================================================
 //  RENDER TABELA
 // =======================================================
 function renderTabela() {
-  let lista = [...listaCache];
+  let lista = [...listaAtual];
   const mes = filtroMes.value;
 
-  if (mes) lista = lista.filter(p => p.date.startsWith(mes));
+  if (mes) {
+    lista = lista.filter(p => p.date.startsWith(mes));
+  }
 
   tabela.innerHTML = lista
     .sort((a, b) => a.date.localeCompare(b.date))
@@ -149,12 +147,11 @@ function renderTabela() {
 window.excluir = async function (id) {
   if (!confirm("Tem certeza que deseja excluir este plantão?")) return;
 
-  await colRef.doc(id).delete();
-  await carregarDados();
+  await db.collection("plantoes").doc(id).delete();
 };
 
 // =======================================================
-//  SALVAR
+//  SALVAR (CRIAR / EDITAR)
 // =======================================================
 window.savePlantao = async function () {
   const novo = {
@@ -170,28 +167,22 @@ window.savePlantao = async function () {
     return;
   }
 
-  const ref = colRef.doc(novo.date);
-  await ref.set(novo);
+  await db.collection("plantoes").doc(novo.date).set(novo);
 
   modalBg.style.display = "none";
-  await carregarDados();
 };
 
 // =======================================================
-//  CARREGAR DADOS DO FIRESTORE
+//  LISTENER EM TEMPO REAL (CORE DO SISTEMA)
 // =======================================================
-async function carregarDados() {
-  const snap = await colRef.get();
-  listaCache = snap.docs.map(doc => ({
-    id: doc.id,
-    ...doc.data()
-  }));
+db.collection("plantoes")
+  .orderBy("date")
+  .onSnapshot(snapshot => {
+    listaAtual = snapshot.docs.map(doc => ({
+      id: doc.id,
+      ...doc.data()
+    }));
 
-  atualizarFiltroMes();
-  renderTabela();
-}
-
-// =======================================================
-//  INIT
-// =======================================================
-carregarDados();
+    atualizarFiltroMes(listaAtual);
+    renderTabela();
+  });
