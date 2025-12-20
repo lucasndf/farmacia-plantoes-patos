@@ -1,0 +1,866 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+
+  <title>Farmácia de Plantão em Patos-PB | Hoje, telefone e rota</title>
+  <meta name="description" content="Veja rapidamente qual farmácia está de plantão hoje em Patos-PB, com endereço, telefone, WhatsApp e rota no mapa." />
+
+  <!-- SEO / Metadata melhor -->
+  <meta name="theme-color" content="#050812" />
+  <meta name="robots" content="index,follow" />
+  <link rel="canonical" href="./" />
+
+  <!-- Open Graph (WhatsApp / Facebook) -->
+  <meta property="og:locale" content="pt_BR" />
+  <meta property="og:type" content="website" />
+  <meta property="og:title" content="Farmácia de Plantão — Patos-PB" />
+  <meta property="og:description" content="Confira agora qual farmácia está de plantão hoje em Patos-PB. Endereço, telefone, WhatsApp e rota." />
+  <meta property="og:url" content="./" />
+
+  <!-- Twitter -->
+  <meta name="twitter:card" content="summary" />
+  <meta name="twitter:title" content="Farmácia de Plantão — Patos-PB" />
+  <meta name="twitter:description" content="Veja a farmácia de plantão hoje em Patos-PB com telefone e rota." />
+
+  <!-- Manifest PWA -->
+  <link rel="manifest" href="manifest.webmanifest" />
+
+  <!-- Registro do Service Worker -->
+  <script>
+    if ("serviceWorker" in navigator) {
+      navigator.serviceWorker.register("service-worker.js")
+        .then(() => console.log("SW registrado"))
+        .catch(err => console.log("Erro SW:", err));
+    }
+  </script>
+
+  <style>
+    :root {
+      --bg: #050812;
+      --card: #0e1324;
+      --card2: #12182b;
+      --text: #ffffff;
+      --text-muted: #96a0ba;
+      --accent: #3e7bfa;
+
+      --center: #ff6b6b;
+      --norte: #00e676;
+      --leste: #f9a826;
+      --oeste: #00d4ff;
+      --sul: #b388ff;
+
+      --radius: 18px;
+
+      /* estados */
+      --danger: #ff5c5c;
+      --danger-soft: rgba(255,92,92,0.12);
+      --line: rgba(148, 163, 184, 0.25);
+    }
+
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+      font-family: "Inter", system-ui, sans-serif;
+    }
+
+    body {
+      background: radial-gradient(circle at top left, #192444 0%, var(--bg) 45%);
+      color: var(--text);
+      display: flex;
+      justify-content: center;
+      padding: 20px;
+      min-height: 100vh;
+    }
+
+    #app {
+      width: 100%;
+      max-width: 960px;
+    }
+
+    header {
+      display: flex;
+      justify-content: space-between;
+      align-items: flex-start;
+      gap: 10px;
+      margin-bottom: 22px;
+    }
+
+    header h1 {
+      font-size: 2rem;
+      font-weight: 800;
+    }
+
+    header p {
+      margin-top: 4px;
+      font-size: 0.9rem;
+      color: var(--text-muted);
+    }
+
+    .header-right {
+      text-align: right;
+      display: flex;
+      flex-direction: column;
+      gap: 6px;
+      align-items: flex-end;
+    }
+
+    .pill {
+      padding: 6px 14px;
+      font-size: 0.82rem;
+      background: rgba(255, 255, 255, 0.05);
+      border-radius: 999px;
+      border: 1px solid rgba(148, 163, 184, 0.4);
+      color: var(--text-muted);
+    }
+
+    .admin-link {
+      font-size: 0.85rem;
+      color: var(--text-muted);
+      text-decoration: none;
+    }
+    .admin-link:hover {
+      color: var(--accent);
+    }
+
+    /* ======================================
+       🔴 ESTADOS (loading / error)
+       ====================================== */
+    .state {
+      background: radial-gradient(circle at top right, #23335d 0%, #0b1020 45%);
+      border-radius: 22px;
+      padding: 22px;
+      margin-bottom: 26px;
+      border: 1px solid rgba(148, 163, 184, 0.25);
+      box-shadow: 0 18px 40px rgba(0, 0, 0, 0.45);
+      display: flex;
+      flex-direction: column;
+      gap: 10px;
+    }
+
+    .state-title {
+      font-weight: 800;
+      font-size: 1.1rem;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    .state-sub {
+      color: var(--text-muted);
+      font-size: 0.9rem;
+      line-height: 1.4;
+    }
+
+    .skeleton-row {
+      height: 12px;
+      border-radius: 999px;
+      background: rgba(255,255,255,0.08);
+      overflow: hidden;
+      position: relative;
+    }
+
+    .skeleton-row::after {
+      content: "";
+      position: absolute;
+      inset: 0;
+      transform: translateX(-40%);
+      background: linear-gradient(90deg, transparent, rgba(255,255,255,0.12), transparent);
+      animation: shimmer 1.1s infinite;
+    }
+
+    @keyframes shimmer {
+      0% { transform: translateX(-60%); }
+      100% { transform: translateX(60%); }
+    }
+
+    .error-box {
+      background: var(--danger-soft);
+      border: 1px solid rgba(255,92,92,0.35);
+      border-radius: 16px;
+      padding: 14px;
+      display: flex;
+      flex-direction: column;
+      gap: 10px;
+    }
+
+    .error-actions {
+      display: flex;
+      gap: 10px;
+      flex-wrap: wrap;
+    }
+
+    .btn-ghost {
+      padding: 9px 16px;
+      border-radius: 999px;
+      font-size: 0.85rem;
+      font-weight: 600;
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      text-decoration: none;
+      cursor: pointer;
+      border: 1px solid rgba(148, 163, 184, 0.35);
+      background: rgba(255,255,255,0.06);
+      color: #fff;
+    }
+
+    .btn-ghost:hover {
+      border-color: rgba(62,123,250,0.65);
+    }
+
+    /* ======================================
+       CARD HOJE
+       ====================================== */
+    .today-card {
+      background: radial-gradient(circle at top right, #23335d 0%, #0b1020 45%);
+      border-radius: 22px;
+      padding: 22px;
+      margin-bottom: 26px;
+      display: flex;
+      flex-direction: column;
+      gap: 14px;
+      border: 1px solid rgba(148, 163, 184, 0.25);
+      box-shadow: 0 18px 40px rgba(0, 0, 0, 0.45);
+    }
+
+    /* 🟠 destaque HOJE mais forte */
+    .today-card.is-today {
+      border-color: rgba(62,123,250,0.55);
+      box-shadow: 0 18px 40px rgba(0, 0, 0, 0.45), 0 0 0 4px rgba(62,123,250,0.12);
+    }
+
+    .today-top {
+      display: flex;
+      justify-content: space-between;
+      gap: 18px;
+      align-items: flex-start;
+    }
+
+    .today-left small {
+      font-size: 0.85rem;
+      color: var(--text-muted);
+    }
+
+    .today-left h2 {
+      font-size: 1.5rem;
+      font-weight: 700;
+      margin-top: 4px;
+    }
+
+    .tag-group {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 10px;
+      margin-top: 6px;
+    }
+
+    .tag {
+      padding: 6px 12px;
+      border-radius: 999px;
+      background: rgba(255, 255, 255, 0.06);
+      font-size: 0.82rem;
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      color: var(--text-muted);
+      border: 1px solid rgba(148, 163, 184, 0.4);
+    }
+
+    /* badge HOJE/AGORA */
+    .tag-now {
+      background: rgba(62,123,250,0.16);
+      color: #dbe7ff;
+      border-color: rgba(62,123,250,0.5);
+    }
+
+    .pulse-dot {
+      width: 8px;
+      height: 8px;
+      border-radius: 50%;
+      background: var(--accent);
+      box-shadow: 0 0 0 0 rgba(62,123,250,0.55);
+      animation: pulse 1.6s infinite;
+    }
+
+    @keyframes pulse {
+      0% { box-shadow: 0 0 0 0 rgba(62,123,250,0.55); }
+      70% { box-shadow: 0 0 0 10px rgba(62,123,250,0.0); }
+      100% { box-shadow: 0 0 0 0 rgba(62,123,250,0.0); }
+    }
+
+    .area-dot {
+      width: 10px;
+      height: 10px;
+      border-radius: 50%;
+    }
+
+    .area-CENTRO { background: var(--center); }
+    .area-NORTE  { background: var(--norte); }
+    .area-LESTE  { background: var(--leste); }
+    .area-OESTE  { background: var(--oeste); }
+    .area-SUL    { background: var(--sul); }
+
+    .info-line {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      font-size: 0.92rem;
+      margin-top: 6px;
+      color: var(--text-muted);
+    }
+
+    .btn-row {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 10px;
+      margin-top: 12px;
+    }
+
+    .btn {
+      padding: 9px 16px;
+      border-radius: 999px;
+      font-size: 0.85rem;
+      font-weight: 600;
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      text-decoration: none;
+      cursor: pointer;
+      border: none;
+    }
+
+    .btn-wpp {
+      background: #25d366;
+      color: #fff;
+    }
+
+    .btn-map {
+      background: #2563eb;
+      color: #fff;
+    }
+
+    .btn-call {
+      background: #111827;
+      color: var(--text-muted);
+      border: 1px solid #374151;
+    }
+
+    .today-right {
+      text-align: right;
+      font-size: 0.82rem;
+      color: var(--text-muted);
+      min-width: 180px;
+    }
+
+    .today-right .label {
+      text-transform: uppercase;
+      letter-spacing: 0.07em;
+      font-size: 0.75rem;
+    }
+
+    .today-right .value {
+      font-size: 1.2rem;
+      font-weight: 700;
+      color: #fff;
+      margin-top: 4px;
+    }
+
+    .today-right .ref {
+      margin-top: 12px;
+      font-size: 0.78rem;
+    }
+
+    /* Próximos plantões */
+    h3.sub-title {
+      margin-bottom: 12px;
+      font-size: 1.05rem;
+    }
+
+    .next-card {
+      background: var(--card2);
+      border-radius: 16px;
+      padding: 14px;
+      margin-bottom: 10px;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      border: 1px solid rgba(15, 23, 42, 0.9);
+    }
+
+    .next-left {
+      display: flex;
+      flex-direction: column;
+      gap: 4px;
+      font-size: 0.9rem;
+    }
+
+    .next-area {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      font-size: 0.82rem;
+      color: var(--text-muted);
+    }
+
+    /* estilo do action-link */
+    .next-actions {
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+      align-items: flex-end;
+      font-size: 0.82rem;
+    }
+
+    .action-link {
+      color: #cfe0ff;
+      text-decoration: none;
+      border: 1px solid rgba(148, 163, 184, 0.25);
+      background: rgba(255,255,255,0.05);
+      padding: 8px 12px;
+      border-radius: 999px;
+      display: inline-flex;
+      justify-content: center;
+      min-width: 92px;
+    }
+    .action-link:hover {
+      border-color: rgba(62,123,250,0.55);
+      color: #fff;
+    }
+
+    footer {
+      margin-top: 20px;
+      padding-top: 14px;
+      border-top: 1px solid rgba(148, 163, 184, 0.25);
+      font-size: 0.78rem;
+      color: var(--text-muted);
+      line-height: 1.4;
+    }
+
+    a.dev-link {
+      color: #3e7bfa;
+      text-decoration: none;
+    }
+    a.dev-link:hover {
+      text-decoration: underline;
+    }
+
+    /* ======================================
+       📱 MOBILE RESPONSIVE
+       ====================================== */
+    @media (max-width: 480px) {
+
+      header {
+        flex-direction: column;
+        align-items: flex-start;
+        gap: 8px;
+      }
+
+      header h1 {
+        font-size: 1.8rem;
+      }
+
+      .header-right {
+        width: 100%;
+        flex-direction: row;
+        justify-content: space-between;
+        align-items: center;
+      }
+
+      .pill {
+        padding: 5px 10px;
+        font-size: 0.78rem;
+      }
+
+      .admin-link {
+        font-size: 0.87rem !important;
+      }
+
+      .today-card {
+        padding: 18px;
+        border-radius: 18px;
+      }
+
+      .today-top {
+        flex-direction: column;
+        gap: 12px;
+      }
+
+      .today-left h2 {
+        font-size: 1.4rem;
+      }
+
+      .tag {
+        padding: 4px 10px;
+        font-size: 0.78rem;
+      }
+
+      .info-line {
+        font-size: 0.86rem;
+      }
+
+      .today-right {
+        text-align: left !important;
+        margin-top: 8px;
+      }
+
+      .today-right .value {
+        font-size: 1.2rem;
+      }
+
+      .btn-row {
+        flex-direction: column;
+      }
+
+      .btn {
+        width: 100%;
+        justify-content: center;
+        padding: 10px 12px;
+        font-size: 0.9rem;
+      }
+
+      .next-card {
+        flex-direction: column;
+        align-items: flex-start;
+        gap: 8px;
+      }
+
+      .next-actions {
+        flex-direction: row;
+        gap: 12px;
+        align-items: center;
+      }
+
+      .action-link {
+        min-width: auto;
+      }
+    }
+  </style>
+</head>
+
+<body>
+<div id="app">
+
+  <header>
+    <div>
+      <h1>Farmácia de Plantão</h1>
+      <p id="subtitle">Saiba rapidamente qual farmácia está de plantão hoje em Patos-PB.</p>
+    </div>
+
+    <div class="header-right">
+      <span class="pill">📍 Patos-PB</span>
+      <a href="login.html" class="admin-link">Área administrativa</a>
+    </div>
+  </header>
+
+  <!-- 🔴 Estado de LOADING / ERRO / HOJE -->
+  <section id="todayCard" class="today-card"></section>
+
+  <h3 class="sub-title">📅 Próximos plantões deste mês</h3>
+  <section id="nextList"></section>
+
+  <footer>
+    Dados oficiais fornecidos pelo <strong>PROCON de Patos-PB</strong>.  
+    Horários de plantão: segunda a sexta, 23h às 06h • finais de semana, 22h às 06h.  
+    <br><br>
+    Projeto desenvolvido por 
+    <a href="https://lucasndf.github.io/portfolio/"
+       target="_blank"
+       class="dev-link"><strong>Lucas Nascimento</strong></a>.
+  </footer>
+
+</div>
+
+<!-- BASE DE DADOS -->
+<script src="data.js"></script>
+
+<script>
+/* =========================================================
+   🔴 1) LOADING / ERROR helpers
+   ========================================================= */
+function showLoading() {
+  document.getElementById("todayCard").classList.remove("is-today");
+  document.getElementById("todayCard").innerHTML = `
+    <div class="state">
+      <div class="state-title">⏳ Carregando…</div>
+      <div class="state-sub">Pegando os dados do plantão de hoje.</div>
+      <div class="skeleton-row" style="width:70%"></div>
+      <div class="skeleton-row" style="width:92%"></div>
+      <div class="skeleton-row" style="width:55%"></div>
+    </div>
+  `;
+}
+
+function showError(message) {
+  document.getElementById("todayCard").classList.remove("is-today");
+  document.getElementById("todayCard").innerHTML = `
+    <div class="state">
+      <div class="error-box">
+        <div class="state-title">⚠️ Não foi possível carregar</div>
+        <div class="state-sub">${message || "Tente novamente em alguns instantes."}</div>
+        <div class="error-actions">
+          <button class="btn-ghost" onclick="boot()">Tentar novamente</button>
+          <a class="btn-ghost" href="tel:190">Emergência (190)</a>
+        </div>
+      </div>
+    </div>
+  `;
+}
+
+/* =========================================================
+   TELEFONES: separar fixos e móveis
+   ========================================================= */
+function parsePhones(raw) {
+  const arr = raw.split("/").map(x => x.trim()).filter(Boolean);
+  const land = [], mobile = [];
+
+  arr.forEach(num => {
+    const d = num.replace(/\D/g, "");
+    if (/^(83)?(3421|3400|4002|3727)/.test(d) || d.length === 10) land.push(num);
+    else mobile.push(num);
+  });
+
+  return { land, mobile };
+}
+
+/* =========================================================
+   TEMPO RESTANTE DO PLANTÃO
+   ========================================================= */
+function calculaTempoRestanteCorrigido() {
+  const agora = new Date();
+  const dia = agora.getDay(); // 0=Dom, 6=Sáb
+  const isWeekend = (dia === 0 || dia === 6);
+
+  const startHour = isWeekend ? 22 : 23;
+  const LIMITE_ANTECIPACAO = 3; // horas antes do plantão
+
+  // INÍCIO DO PLANTÃO
+  const inicio = new Date(agora);
+  inicio.setHours(startHour, 0, 0, 0);
+
+  // FIM DO PLANTÃO (06h)
+  const fim = new Date(agora);
+  fim.setHours(6, 0, 0, 0);
+
+  // Se for madrugada, o início foi ontem
+  if (agora.getHours() < 6) {
+    inicio.setDate(inicio.getDate() - 1);
+  }
+
+  // Se já passou do início hoje, o fim é amanhã
+  if (agora.getHours() >= startHour) {
+    fim.setDate(fim.getDate() + 1);
+  }
+
+  let texto = "";
+
+  // Antes do plantão
+  if (agora < inicio) {
+    const diff = inicio - agora;
+    const horas = diff / 3600000;
+
+    if (horas <= LIMITE_ANTECIPACAO) {
+      const h = Math.floor(horas);
+      const m = Math.floor((diff % 3600000) / 60000);
+      texto = `começa em ${h}h ${String(m).padStart(2, "0")}min`;
+    } else {
+      texto = "Plantão encerrado";
+    }
+  }
+  // Durante o plantão
+  else if (agora >= inicio && agora < fim) {
+    const diff = fim - agora;
+    const h = Math.floor(diff / 3600000);
+    const m = Math.floor((diff % 3600000) / 60000);
+    texto = `faltam ${h}h ${String(m).padStart(2, "0")}min`;
+  }
+  // Após o plantão
+  else {
+    texto = "Plantão encerrado";
+  }
+
+  const refTexto = isWeekend
+    ? "Horário de plantão — fim de semana: 22h às 06h"
+    : "Horário de plantão — segunda a sexta: 23h às 06h";
+
+  return { texto, refTexto };
+}
+
+/* =========================================================
+   🟠 Microcopy
+   ========================================================= */
+function getHumanSubtitle() {
+  const agora = new Date();
+  const h = agora.getHours();
+  if (h >= 0 && h < 6) return "Plantão da madrugada — veja quem está atendendo agora em Patos-PB.";
+  if (h >= 6 && h < 12) return "Bom dia! Confira qual farmácia está de plantão em Patos-PB.";
+  if (h >= 12 && h < 18) return "Boa tarde! Veja a farmácia de plantão e como chegar rapidinho.";
+  return "Boa noite! Confira a farmácia de plantão e os contatos em Patos-PB.";
+}
+
+/* =========================================================
+   RENDER HOJE
+   ========================================================= */
+function renderToday() {
+  const dados = window.PlantoesStore.get();
+  const hoje = new Date().toISOString().split("T")[0];
+
+  let entry = dados.find(x => x.date === hoje);
+  if (!entry) entry = dados[0]; // fallback
+
+  const { land, mobile } = parsePhones(entry.telefone || "");
+  const areaClasse = "area-" + (entry.area || "CENTRO");
+  const dataBR = (entry.date || "").split("-").reverse().join("/");
+
+  const { texto, refTexto } = calculaTempoRestanteCorrigido();
+
+  // 🟠 microcopy: muda o subtitle sem mexer no layout
+  const subtitle = document.getElementById("subtitle");
+  if (subtitle) subtitle.textContent = getHumanSubtitle();
+
+  // 🟠 destaque mais forte de HOJE
+  const todayEl = document.getElementById("todayCard");
+  todayEl.classList.add("is-today");
+
+  // Se não tiver telefone válido, remove botões que dependem dele
+  const firstMobile = mobile[0] ? mobile[0].replace(/\D/g,'') : "";
+  const firstCall = (land[0] || mobile[0] || "").replace(/\D/g,'');
+
+  todayEl.innerHTML = `
+    <div class="today-top">
+      <div class="today-left">
+        <small>Hoje • ${dataBR}</small>
+        <h2>${entry.farmacia || "Farmácia não informada"}</h2>
+
+        <div class="tag-group">
+          <div class="tag">
+            <span class="area-dot ${areaClasse}"></span>
+            Área ${entry.area || "-"}
+          </div>
+
+          <div class="tag tag-now">
+            <span class="pulse-dot"></span>
+            HOJE
+          </div>
+        </div>
+
+        <div class="info-line">📍 ${entry.endereco || "-"}</div>
+        <div class="info-line">📞 ${entry.telefone || "-"}</div>
+
+        <div class="btn-row">
+          ${
+            firstMobile
+              ? `<a class="btn btn-wpp" href="https://wa.me/55${firstMobile}" target="_blank" rel="noopener">WhatsApp</a>`
+              : ""
+          }
+
+          <a class="btn btn-map"
+             href="https://www.google.com/maps/dir/?api=1&destination=${encodeURIComponent((entry.endereco || "") + ", Patos - PB")}"
+             target="_blank" rel="noopener">Ver rota</a>
+
+          ${
+            firstCall
+              ? `<a class="btn btn-call" href="tel:${firstCall}">Ligar</a>`
+              : ""
+          }
+        </div>
+      </div>
+
+      <div class="today-right">
+        <div class="label">Tempo restante do plantão</div>
+        <div class="value">${texto}</div>
+        <div class="ref">${refTexto}</div>
+      </div>
+    </div>
+  `;
+}
+
+/* =========================================================
+   RENDER PRÓXIMOS
+   ========================================================= */
+function renderNext() {
+  const dados = window.PlantoesStore.get();
+  const hoje = new Date().toISOString().split("T")[0];
+
+  const proximos = dados
+    .filter(x => x.date > hoje)
+    .slice(0, 5);
+
+  document.getElementById("nextList").innerHTML = proximos
+    .map(p => {
+      const d = p.date.split("-").reverse().join("/");
+      const areaClasse = "area-" + p.area;
+
+      // WhatsApp: tenta pegar o primeiro número “limpo”
+      const phones = parsePhones(p.telefone || "");
+      const wpp = phones.mobile[0] ? phones.mobile[0].replace(/\D/g,"") : (p.telefone || "").replace(/\D/g,"");
+
+      return `
+        <article class="next-card">
+          <div class="next-left">
+            <div class="next-date">${d}</div>
+            <div>${p.farmacia}</div>
+
+            <div class="next-area">
+              <span class="area-dot ${areaClasse}"></span>
+              ${p.area}
+            </div>
+
+            <small>${p.endereco}</small>
+            <small>${p.telefone}</small>
+          </div>
+
+          <div class="next-actions">
+            <a class="action-link"
+               href="https://wa.me/55${wpp}"
+               target="_blank" rel="noopener">WhatsApp</a>
+
+            <a class="action-link"
+               href="https://www.google.com/maps/dir/?api=1&destination=${encodeURIComponent(p.endereco + ', Patos - PB')}"
+               target="_blank" rel="noopener">Mapa</a>
+          </div>
+        </article>
+      `;
+    })
+    .join("");
+}
+
+/* =========================================================
+   🔴 2) Boot com loading + try/catch
+   ========================================================= */
+function boot() {
+  showLoading();
+
+  // dá um micro tempo pro loading aparecer (UX)
+  setTimeout(() => {
+    try {
+      if (!window.PlantoesStore || typeof window.PlantoesStore.get !== "function") {
+        throw new Error("Banco local não carregou (data.js).");
+      }
+
+      // força leitura pra validar JSON / localStorage
+      window.PlantoesStore.get();
+
+      renderToday();
+      renderNext();
+
+    } catch (err) {
+      console.error(err);
+      showError("Verifique sua conexão ou tente atualizar a página. Se o problema continuar, o arquivo data.js pode não ter carregado.");
+    }
+  }, 120);
+}
+
+/* =========================================================
+   INIT + atualização 1 min
+   ========================================================= */
+boot();
+setInterval(() => {
+  try { renderToday(); } catch {}
+}, 60000);
+</script>
+
+</body>
+</html>
