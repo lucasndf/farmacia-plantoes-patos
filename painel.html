@@ -1,0 +1,319 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Painel Administrativo - Plantões Patos</title>
+
+<style>
+:root {
+  --bg: #050812;
+  --card: #111729;
+  --card-soft: #182033;
+  --text: #ffffff;
+  --text-muted: #9ca7c4;
+  --accent: #3e7bfa;
+  --accent-hover: #2d5fd6;
+  --radius: 14px;
+  --border: #1e2538;
+}
+
+body {
+  margin: 0;
+  background: var(--bg);
+  font-family: "Inter", sans-serif;
+  color: var(--text);
+  display: flex;
+  height: 100vh;
+  overflow: hidden;
+}
+
+/* =====================
+   SIDEBAR / TOPBAR
+   ===================== */
+.sidebar {
+  width: 250px;
+  background: var(--card);
+  border-right: 1px solid var(--border);
+  padding: 20px;
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+}
+
+.sidebar h2 {
+  margin: 0;
+  font-size: 1.3rem;
+  font-weight: 700;
+}
+
+/* BOTÃO SAIR (DESKTOP) */
+.btn-logout {
+  background: transparent;
+  border: 1px solid var(--border);
+  padding: 10px;
+  border-radius: var(--radius);
+  color: var(--text-muted);
+  cursor: pointer;
+  transition: 0.2s;
+}
+
+.btn-logout:hover {
+  color: var(--text);
+  border-color: var(--accent);
+}
+
+/* =====================
+   CONTENT
+   ===================== */
+.content {
+  flex: 1;
+  padding: 24px;
+  overflow-y: auto;
+}
+
+.topbar {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 18px;
+}
+
+.topbar h1 {
+  font-size: 1.5rem;
+  margin: 0;
+  font-weight: 700;
+}
+
+.btn-primary {
+  background: var(--accent);
+  border: none;
+  padding: 10px 16px;
+  border-radius: var(--radius);
+  color: #fff;
+  cursor: pointer;
+  font-weight: 600;
+}
+
+.btn-primary:hover {
+  background: var(--accent-hover);
+}
+
+/* =====================
+   TABLE
+   ===================== */
+table {
+  width: 100%;
+  border-collapse: collapse;
+  margin-top: 12px;
+  font-size: 0.95rem;
+}
+
+th, td {
+  padding: 10px;
+  border-bottom: 1px solid var(--border);
+}
+
+th {
+  color: var(--text-muted);
+  text-align: left;
+  font-size: 0.85rem;
+}
+
+tr:hover {
+  background: rgba(255,255,255,0.03);
+}
+
+.btn-small {
+  background: transparent;
+  border: 1px solid var(--accent);
+  padding: 4px 10px;
+  border-radius: 8px;
+  color: var(--accent);
+  cursor: pointer;
+  font-size: 0.82rem;
+}
+
+.btn-small:hover {
+  background: var(--accent);
+  color: #fff;
+}
+
+/* =====================
+   MODAL
+   ===================== */
+.modal-bg {
+  position: fixed;
+  inset: 0;
+  background: rgba(0,0,0,0.7);
+  display: none;
+  justify-content: center;
+  align-items: center;
+  z-index: 9999;
+}
+
+.modal {
+  background: var(--card);
+  padding: 20px;
+  border-radius: var(--radius);
+  width: 90%;
+  max-width: 450px;
+}
+
+.modal input,
+.modal textarea {
+  width: 100%;
+  padding: 10px;
+  margin-top: 8px;
+  background: var(--card-soft);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  color: var(--text);
+}
+
+/* =====================
+   MOBILE
+   ===================== */
+@media (max-width: 768px) {
+
+  body {
+    flex-direction: column;
+    height: auto;
+  }
+
+  .sidebar {
+    width: 100%;
+    flex-direction: row;
+    align-items: center;
+    justify-content: space-between;
+    padding: 14px 16px;
+    border-right: none;
+    border-bottom: 1px solid var(--border);
+  }
+
+  .sidebar h2 {
+    font-size: 1.2rem;
+  }
+
+  /* BOTÃO SAIR MOBILE */
+  .btn-logout {
+    padding: 6px 14px;
+    font-size: 0.8rem;
+    border-radius: 999px;
+    white-space: nowrap;
+  }
+
+  table {
+    display: block;
+    overflow-x: auto;
+    white-space: nowrap;
+  }
+}
+</style>
+</head>
+
+<body>
+
+<!-- SIDEBAR / TOPBAR -->
+<div class="sidebar">
+  <h2>Admin</h2>
+  <button class="btn-logout" onclick="logout()">Sair</button>
+</div>
+
+<!-- CONTENT -->
+<div class="content">
+
+  <div class="topbar">
+    <h1>Gerenciar Plantões</h1>
+
+    <div style="display:flex; gap:10px;">
+      <button class="btn-primary" onclick="openModal()">Adicionar Plantão</button>
+      <button class="btn-primary" onclick="openImportModal()">Importar Lista</button>
+    </div>
+  </div>
+
+  <!-- FILTRO POR MÊS -->
+  <div style="margin-bottom:12px; display:flex; gap:10px; align-items:center;">
+    <label for="filtroMes" style="font-size:0.85rem; color:var(--text-muted);">
+      Filtrar por mês:
+    </label>
+
+    <select id="filtroMes"
+            style="
+              background: var(--card-soft);
+              color: var(--text);
+              border: 1px solid var(--border);
+              border-radius: 8px;
+              padding: 6px 10px;
+            ">
+      <option value="">Todos</option>
+    </select>
+  </div>
+
+  <table id="tabela">
+    <thead>
+      <tr>
+        <th>Data</th>
+        <th>Farmácia</th>
+        <th>Área</th>
+        <th>Telefone</th>
+        <th></th>
+      </tr>
+    </thead>
+    <tbody></tbody>
+  </table>
+
+</div>
+
+<!-- MODAIS -->
+<div class="modal-bg" id="modalBg">
+  <div class="modal">
+    <h3 id="modalTitle">Novo Plantão</h3>
+    <input id="inpDate" type="date" />
+    <input id="inpFarm" type="text" placeholder="Farmácia" />
+    <input id="inpEnd" type="text" placeholder="Endereço" />
+    <input id="inpTel" type="text" placeholder="Telefone" />
+    <input id="inpArea" type="text" placeholder="Área (CENTRO, NORTE...)" />
+    <button class="btn-primary" onclick="savePlantao()">Salvar</button>
+  </div>
+</div>
+
+<div class="modal-bg" id="modalImportBg">
+  <div class="modal">
+    <h3>Importar lista de plantões</h3>
+    <textarea id="importTextarea" style="height:220px"></textarea>
+    <button class="btn-primary" onclick="importarLista()">Importar</button>
+  </div>
+</div>
+
+<!-- FIREBASE -->
+<script src="https://www.gstatic.com/firebasejs/10.14.0/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.14.0/firebase-auth-compat.js"></script>
+
+<script>
+const firebaseConfig = {
+  apiKey: "AIzaSyAhuIJT5TM0hT_m8S3zNEeZNmM8Ei2qOn8",
+  authDomain: "plantoes-patos.firebaseapp.com",
+  projectId: "plantoes-patos",
+  storageBucket: "plantoes-patos.firebasestorage.app",
+  messagingSenderId: "389722424174",
+  appId: "1:389722424174:web:efa844d12dbc48635b377f"
+};
+
+firebase.initializeApp(firebaseConfig);
+const auth = firebase.auth();
+
+auth.onAuthStateChanged(user => {
+  if (!user) window.location.href = "login.html";
+});
+
+function logout() {
+  auth.signOut().then(() => window.location.href = "login.html");
+}
+</script>
+
+<script src="data.js"></script>
+<script src="admin.js"></script>
+
+</body>
+</html>
