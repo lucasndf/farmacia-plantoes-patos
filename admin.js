@@ -1,15 +1,22 @@
 // =======================================================
-//  ADMIN.JS — Painel Administrativo (Firestore)
+// ADMIN.JS — Painel Administrativo (Firestore)
 // =======================================================
 
+// FIRESTORE
+const db = firebase.firestore();
+
+// ESTADO
+let listaAtual = [];
 let editId = null;
 
 // ELEMENTOS
 const tabela = document.querySelector("#tabela tbody");
+const filtroMes = document.getElementById("filtroMes");
+
 const modalBg = document.getElementById("modalBg");
 const modalImportBg = document.getElementById("modalImportBg");
+
 const importTextarea = document.getElementById("importTextarea");
-const filtroMes = document.getElementById("filtroMes");
 
 const inpDate = document.getElementById("inpDate");
 const inpFarm = document.getElementById("inpFarm");
@@ -19,14 +26,8 @@ const inpArea = document.getElementById("inpArea");
 
 const modalTitle = document.getElementById("modalTitle");
 
-// FIRESTORE
-const db = firebase.firestore();
-
-// CACHE EM MEMÓRIA
-let listaAtual = [];
-
 // =======================================================
-//  MODAL NOVO / EDITAR
+// MODAL NOVO / EDITAR
 // =======================================================
 window.openModal = function (id = null) {
   editId = id;
@@ -58,10 +59,9 @@ modalBg.addEventListener("click", e => {
 });
 
 // =======================================================
-//  MODAL IMPORTAÇÃO
+// MODAL IMPORTAÇÃO
 // =======================================================
-window.openImportModal = function (e) {
-  if (e) e.stopPropagation(); // 🔴 ISSO É O PONTO-CHAVE
+window.openImportModal = function () {
   importTextarea.value = "";
   modalImportBg.style.display = "flex";
 };
@@ -71,7 +71,7 @@ modalImportBg.addEventListener("click", e => {
 });
 
 // =======================================================
-//  IMPORTAR LISTA → FIRESTORE
+// IMPORTAR LISTA (JSON → FIRESTORE)
 // =======================================================
 window.importarLista = async function () {
   const texto = importTextarea.value.trim();
@@ -80,37 +80,75 @@ window.importarLista = async function () {
     return;
   }
 
+  let json;
   try {
-    const json = JSON.parse(texto);
+    json = JSON.parse(texto);
     if (!Array.isArray(json)) throw new Error();
+  } catch {
+    alert("JSON inválido.");
+    return;
+  }
 
-    for (const p of json) {
-      if (!p.date || !p.farmacia || !p.area) continue;
+  try {
+    const batch = db.batch();
 
-      await db.collection("plantoes").doc(p.date).set({
+    json.forEach(p => {
+      if (!p.date || !p.farmacia || !p.area) return;
+
+      const ref = db.collection("plantoes").doc(p.date);
+      batch.set(ref, {
         date: p.date,
         farmacia: p.farmacia,
         endereco: p.endereco || "",
         telefone: p.telefone || "",
         area: p.area.toUpperCase()
       });
-    }
+    });
 
-    importTextarea.value = "";
+    await batch.commit();
+
     modalImportBg.style.display = "none";
+    importTextarea.value = "";
     alert("Lista importada com sucesso!");
-
   } catch (err) {
-    alert("JSON inválido.");
+    console.error(err);
+    alert("Erro ao importar lista.");
   }
 };
 
 // =======================================================
-//  FILTRO POR MÊS
+// SALVAR (CRIAR / EDITAR)
+// =======================================================
+window.savePlantao = async function () {
+  const novo = {
+    date: inpDate.value,
+    farmacia: inpFarm.value.trim(),
+    endereco: inpEnd.value.trim(),
+    telefone: inpTel.value.trim(),
+    area: inpArea.value.trim().toUpperCase()
+  };
+
+  if (!novo.date || !novo.farmacia || !novo.area) {
+    alert("Preencha data, farmácia e área.");
+    return;
+  }
+
+  await db.collection("plantoes").doc(novo.date).set(novo);
+  modalBg.style.display = "none";
+};
+
+// =======================================================
+// EXCLUIR
+// =======================================================
+window.excluir = async function (id) {
+  if (!confirm("Tem certeza que deseja excluir este plantão?")) return;
+  await db.collection("plantoes").doc(id).delete();
+};
+
+// =======================================================
+// FILTRO POR MÊS
 // =======================================================
 function atualizarFiltroMes(lista) {
-  if (!filtroMes) return;
-
   const meses = [...new Set(lista.map(p => p.date.slice(0, 7)))].sort();
 
   filtroMes.innerHTML =
@@ -118,16 +156,14 @@ function atualizarFiltroMes(lista) {
     meses.map(m => `<option value="${m}">${m}</option>`).join("");
 }
 
-if (filtroMes) {
-  filtroMes.addEventListener("change", () => renderTabela());
-}
+filtroMes.addEventListener("change", renderTabela);
 
 // =======================================================
-//  RENDER TABELA
+// RENDER TABELA
 // =======================================================
 function renderTabela() {
   let lista = [...listaAtual];
-  const mes = filtroMes ? filtroMes.value : "";
+  const mes = filtroMes.value;
 
   if (mes) {
     lista = lista.filter(p => p.date.startsWith(mes));
@@ -151,36 +187,7 @@ function renderTabela() {
 }
 
 // =======================================================
-//  EXCLUIR
-// =======================================================
-window.excluir = async function (id) {
-  if (!confirm("Tem certeza que deseja excluir este plantão?")) return;
-  await db.collection("plantoes").doc(id).delete();
-};
-
-// =======================================================
-//  SALVAR (CRIAR / EDITAR)
-// =======================================================
-window.savePlantao = async function () {
-  const novo = {
-    date: inpDate.value,
-    farmacia: inpFarm.value.trim(),
-    endereco: inpEnd.value.trim(),
-    telefone: inpTel.value.trim(),
-    area: inpArea.value.trim().toUpperCase()
-  };
-
-  if (!novo.date || !novo.farmacia || !novo.area) {
-    alert("Preencha data, farmácia e área.");
-    return;
-  }
-
-  await db.collection("plantoes").doc(novo.date).set(novo);
-  modalBg.style.display = "none";
-};
-
-// =======================================================
-//  LISTENER EM TEMPO REAL (CORE)
+// LISTENER EM TEMPO REAL (CORE)
 // =======================================================
 db.collection("plantoes")
   .orderBy("date")
@@ -193,3 +200,25 @@ db.collection("plantoes")
     atualizarFiltroMes(listaAtual);
     renderTabela();
   });
+
+// =======================================================
+// PUBLICAR JSON PARA SITE PÚBLICO
+// =======================================================
+window.publicarJSON = async function () {
+  const snap = await db.collection("plantoes").orderBy("date").get();
+  const dados = snap.docs.map(doc => doc.data());
+
+  const blob = new Blob(
+    [JSON.stringify(dados, null, 2)],
+    { type: "application/json" }
+  );
+
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement("a");
+
+  a.href = url;
+  a.download = "plantoes.json";
+  a.click();
+
+  URL.revokeObjectURL(url);
+};
