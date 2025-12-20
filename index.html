@@ -7,33 +7,37 @@
   <title>Farmácia de Plantão em Patos-PB | Hoje, telefone e rota</title>
   <meta name="description" content="Veja rapidamente qual farmácia está de plantão hoje em Patos-PB, com endereço, telefone, WhatsApp e rota no mapa." />
 
-  <!-- SEO / Metadata melhor -->
   <meta name="theme-color" content="#050812" />
   <meta name="robots" content="index,follow" />
   <link rel="canonical" href="./" />
 
-  <!-- Open Graph (WhatsApp / Facebook) -->
+  <!-- Open Graph -->
   <meta property="og:locale" content="pt_BR" />
   <meta property="og:type" content="website" />
   <meta property="og:title" content="Farmácia de Plantão — Patos-PB" />
-  <meta property="og:description" content="Confira agora qual farmácia está de plantão hoje em Patos-PB. Endereço, telefone, WhatsApp e rota." />
+  <meta property="og:description" content="Confira agora qual farmácia está de plantão hoje em Patos-PB." />
   <meta property="og:url" content="./" />
 
-  <!-- Twitter -->
-  <meta name="twitter:card" content="summary" />
-  <meta name="twitter:title" content="Farmácia de Plantão — Patos-PB" />
-  <meta name="twitter:description" content="Veja a farmácia de plantão hoje em Patos-PB com telefone e rota." />
-
-  <!-- Manifest PWA -->
+  <!-- Manifest -->
   <link rel="manifest" href="manifest.webmanifest" />
 
-  <!-- Registro do Service Worker -->
+  <!-- Service Worker (APENAS SITE PÚBLICO) -->
   <script>
-if ("serviceWorker" in navigator) {
-  navigator.serviceWorker.register("./sw-public.js", {
-    scope: "./"
-  });
-}
+    if ("serviceWorker" in navigator) {
+      navigator.serviceWorker.register("./sw-public.js", { scope: "./" });
+    }
+  </script>
+
+  <!-- Firebase (LEITURA PÚBLICA) -->
+  <script src="https://www.gstatic.com/firebasejs/10.14.0/firebase-app-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/10.14.0/firebase-firestore-compat.js"></script>
+
+  <script>
+    firebase.initializeApp({
+      apiKey: "AIzaSyAhuIJT5TM0hT_m8S3zNEeZNmM8Ei2qOn8",
+      authDomain: "plantoes-patos.firebaseapp.com",
+      projectId: "plantoes-patos"
+    });
   </script>
 
   <style>
@@ -555,7 +559,6 @@ if ("serviceWorker" in navigator) {
     </div>
   </header>
 
-  <!-- 🔴 Estado de LOADING / ERRO / HOJE -->
   <section id="todayCard" class="today-card"></section>
 
   <h3 class="sub-title">📅 Próximos plantões deste mês</h3>
@@ -566,9 +569,9 @@ if ("serviceWorker" in navigator) {
     Horários de plantão: segunda a sexta, 23h às 06h • finais de semana, 22h às 06h.  
     <br><br>
     Projeto desenvolvido por 
-    <a href="https://lucasndf.github.io/portfolio/"
-       target="_blank"
-       class="dev-link"><strong>Lucas Nascimento</strong></a>.
+    <a href="https://lucasndf.github.io/portfolio/" target="_blank" class="dev-link">
+      <strong>Lucas Nascimento</strong>
+    </a>.
   </footer>
 
 </div>
@@ -577,38 +580,88 @@ if ("serviceWorker" in navigator) {
 <script src="data.js"></script>
 
 <script>
-/* =========================================================
-   🔴 1) LOADING / ERROR helpers
-   ========================================================= */
+/* ===============================
+   HELPERS
+================================ */
 function showLoading() {
-  document.getElementById("todayCard").classList.remove("is-today");
   document.getElementById("todayCard").innerHTML = `
     <div class="state">
       <div class="state-title">⏳ Carregando…</div>
-      <div class="state-sub">Pegando os dados do plantão de hoje.</div>
+      <div class="state-sub">Pegando os dados do plantão.</div>
       <div class="skeleton-row" style="width:70%"></div>
-      <div class="skeleton-row" style="width:92%"></div>
-      <div class="skeleton-row" style="width:55%"></div>
+      <div class="skeleton-row" style="width:90%"></div>
     </div>
   `;
 }
 
-function showError(message) {
-  document.getElementById("todayCard").classList.remove("is-today");
+function showError(msg) {
   document.getElementById("todayCard").innerHTML = `
     <div class="state">
       <div class="error-box">
         <div class="state-title">⚠️ Não foi possível carregar</div>
-        <div class="state-sub">${message || "Tente novamente em alguns instantes."}</div>
-        <div class="error-actions">
-          <button class="btn-ghost" onclick="boot()">Tentar novamente</button>
-          <a class="btn-ghost" href="tel:190">Emergência (190)</a>
-        </div>
+        <div class="state-sub">${msg}</div>
       </div>
     </div>
   `;
 }
 
+/* ===============================
+   RENDER HOJE
+================================ */
+async function renderToday() {
+  const dados = await window.PlantoesStore.get();
+  const hoje = new Date().toISOString().split("T")[0];
+
+  let entry = dados.find(p => p.date === hoje) || dados[0];
+  if (!entry) throw new Error("Sem dados");
+
+  document.getElementById("todayCard").innerHTML = `
+    <small>Hoje • ${entry.date.split("-").reverse().join("/")}</small>
+    <h2>${entry.farmacia}</h2>
+    <div>📍 ${entry.endereco}</div>
+    <div>📞 ${entry.telefone}</div>
+  `;
+}
+
+/* ===============================
+   RENDER PRÓXIMOS
+================================ */
+async function renderNext() {
+  const dados = await window.PlantoesStore.get();
+  const hoje = new Date().toISOString().split("T")[0];
+
+  const proximos = dados.filter(p => p.date > hoje).slice(0, 5);
+
+  document.getElementById("nextList").innerHTML = proximos.map(p => `
+    <div class="next-card">
+      <div>${p.date.split("-").reverse().join("/")}</div>
+      <div>${p.farmacia}</div>
+      <small>${p.endereco}</small>
+    </div>
+  `).join("");
+}
+
+/* ===============================
+   BOOT
+================================ */
+async function boot() {
+  showLoading();
+  try {
+    await window.PlantoesStore.get();
+    await renderToday();
+    await renderNext();
+  } catch (e) {
+    console.error(e);
+    showError("Erro ao carregar os dados.");
+  }
+}
+
+boot();
+setInterval(renderToday, 60000);
+</script>
+
+</body>
+</html>
 /* =========================================================
    TELEFONES: separar fixos e móveis
    ========================================================= */
