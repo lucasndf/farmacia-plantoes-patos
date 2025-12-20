@@ -860,6 +860,13 @@ boot();
 setInterval(() => {
   try { renderToday(); } catch {}
 }, 60000);
+  
+if ("serviceWorker" in navigator) {
+  navigator.serviceWorker.register("./sw-public.js", {
+    scope: "./"
+  });
+}
+
 </script>
 
 </body>
