@@ -60,7 +60,8 @@ modalBg.addEventListener("click", e => {
 // =======================================================
 //  MODAL IMPORTAÇÃO
 // =======================================================
-window.openImportModal = function () {
+window.openImportModal = function (e) {
+  if (e) e.stopPropagation(); // 🔴 ISSO É O PONTO-CHAVE
   importTextarea.value = "";
   modalImportBg.style.display = "flex";
 };
