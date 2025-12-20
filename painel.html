@@ -281,10 +281,16 @@ tr:hover {
 <div class="modal-bg" id="modalImportBg">
   <div class="modal">
     <h3>Importar lista de plantões</h3>
-    <textarea id="importTextarea" style="height:220px"></textarea>
-    <button type="button" class="btn-primary" onclick="openImportModal(event)"> </button>
+
+    <textarea id="importTextarea" style="height:220px"
+      placeholder="Cole aqui o JSON da lista de plantões"></textarea>
+
+    <button type="button" class="btn-primary" onclick="importarLista()">
+      Importar
+    </button>
   </div>
 </div>
+
 
 <!-- FIREBASE -->
 <script src="https://www.gstatic.com/firebasejs/10.14.0/firebase-app-compat.js"></script>
