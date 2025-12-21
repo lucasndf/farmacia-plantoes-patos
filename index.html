@@ -578,63 +578,74 @@
   </footer>
 
 </div>
+<!-- BASE DE DADOS -->
+<script src="data.js"></script>
+
 <script>
-/* ======================================================
-   CACHE GLOBAL (🔥 EVITA BUG DE DADOS)
-====================================================== */
+/* =========================================================
+   🔥 CACHE GLOBAL (ESSENCIAL)
+   ========================================================= */
 let CACHE_PLANTOES = [];
 
-/* ======================================================
-   LOADING / ERROR
-====================================================== */
+/* =========================================================
+   🔴 LOADING / ERROR
+   ========================================================= */
 function showLoading() {
-  document.getElementById("todayCard").classList.remove("is-today");
-  document.getElementById("todayCard").innerHTML = `
+  const el = document.getElementById("todayCard");
+  el.classList.remove("is-today");
+  el.innerHTML = `
     <div class="state">
       <div class="state-title">⏳ Carregando…</div>
-      <div class="state-sub">Buscando dados do plantão.</div>
+      <div class="state-sub">Pegando os dados do plantão de hoje.</div>
       <div class="skeleton-row" style="width:70%"></div>
-      <div class="skeleton-row" style="width:90%"></div>
+      <div class="skeleton-row" style="width:92%"></div>
+      <div class="skeleton-row" style="width:55%"></div>
     </div>
   `;
 }
 
-function showError(msg) {
-  document.getElementById("todayCard").innerHTML = `
+function showError(message) {
+  const el = document.getElementById("todayCard");
+  el.classList.remove("is-today");
+  el.innerHTML = `
     <div class="state">
       <div class="error-box">
         <div class="state-title">⚠️ Erro</div>
-        <div class="state-sub">${msg}</div>
+        <div class="state-sub">${message}</div>
+        <div class="error-actions">
+          <button class="btn-ghost" onclick="boot()">Tentar novamente</button>
+          <a class="btn-ghost" href="tel:190">Emergência (190)</a>
+        </div>
       </div>
     </div>
   `;
 }
-/* ======================================================
+
+/* =========================================================
    TELEFONES
-====================================================== */
-function parsePhones(raw = "") {
-  const nums = raw.split("/").map(n => n.trim()).filter(Boolean);
+   ========================================================= */
+function parsePhones(raw) {
+  const arr = raw.split("/").map(x => x.trim()).filter(Boolean);
   const land = [], mobile = [];
 
-  nums.forEach(n => {
-    const d = n.replace(/\D/g, "");
-    if (d.length === 10) land.push(n);
-    else mobile.push(n);
+  arr.forEach(num => {
+    const d = num.replace(/\D/g, "");
+    if (d.length === 10) land.push(num);
+    else mobile.push(num);
   });
 
   return { land, mobile };
 }
 
-/* ======================================================
+/* =========================================================
    TEMPO RESTANTE
-====================================================== */
+   ========================================================= */
 function calculaTempoRestanteCorrigido() {
   const agora = new Date();
   const dia = agora.getDay();
-  const isWeekend = (dia === 0 || dia === 6);
+  const isWeekend = dia === 0 || dia === 6;
 
   const startHour = isWeekend ? 22 : 23;
-
   const inicio = new Date(agora);
   inicio.setHours(startHour, 0, 0, 0);
 
@@ -644,75 +655,160 @@ function calculaTempoRestanteCorrigido() {
   if (agora.getHours() < 6) inicio.setDate(inicio.getDate() - 1);
   if (agora.getHours() >= startHour) fim.setDate(fim.getDate() + 1);
 
-  let texto = "Plantão encerrado";
+  let texto = "";
 
-  if (agora >= inicio && agora < fim) {
+  if (agora < inicio) {
+    const diff = inicio - agora;
+    const h = Math.floor(diff / 3600000);
+    const m = Math.floor((diff % 3600000) / 60000);
+    texto = `começa em ${h}h ${String(m).padStart(2,"0")}min`;
+  } else if (agora < fim) {
     const diff = fim - agora;
-    texto = `faltam ${Math.floor(diff / 3600000)}h`;
+    const h = Math.floor(diff / 3600000);
+    const m = Math.floor((diff % 3600000) / 60000);
+    texto = `faltam ${h}h ${String(m).padStart(2,"0")}min`;
+  } else {
+    texto = "Plantão encerrado";
   }
 
-  return texto;
+  return {
+    texto,
+    refTexto: isWeekend
+      ? "Horário de plantão — fim de semana: 22h às 06h"
+      : "Horário de plantão — segunda a sexta: 23h às 06h"
+  };
 }
-/* ======================================================
+
+/* =========================================================
+   MICROCOPY
+   ========================================================= */
+function getHumanSubtitle() {
+  const h = new Date().getHours();
+  if (h < 6) return "Plantão da madrugada — veja quem está atendendo agora em Patos-PB.";
+  if (h < 12) return "Bom dia! Confira qual farmácia está de plantão em Patos-PB.";
+  if (h < 18) return "Boa tarde! Veja a farmácia de plantão e como chegar rapidinho.";
+  return "Boa noite! Confira a farmácia de plantão e os contatos em Patos-PB.";
+}
+
+/* =========================================================
    RENDER HOJE
-====================================================== */
+   ========================================================= */
 function renderToday() {
   if (!CACHE_PLANTOES.length) return;
 
   const hoje = new Date().toISOString().split("T")[0];
   const entry = CACHE_PLANTOES.find(p => p.date === hoje) || CACHE_PLANTOES[0];
 
-  const { land, mobile } = parsePhones(entry.telefone);
+  const { land, mobile } = parsePhones(entry.telefone || "");
+  const areaClasse = "area-" + entry.area;
+  const dataBR = entry.date.split("-").reverse().join("/");
 
-  document.getElementById("todayCard").classList.add("is-today");
+  const { texto, refTexto } = calculaTempoRestanteCorrigido();
 
-  document.getElementById("todayCard").innerHTML = `
-    <small>Hoje • ${entry.date.split("-").reverse().join("/")}</small>
-    <h2>${entry.farmacia}</h2>
-    <div>📍 ${entry.endereco}</div>
-    <div>📞 ${entry.telefone}</div>
+  const subtitle = document.getElementById("subtitle");
+  if (subtitle) subtitle.textContent = getHumanSubtitle();
+
+  const el = document.getElementById("todayCard");
+  el.classList.add("is-today");
+
+  const firstMobile = mobile[0]?.replace(/\D/g,"");
+  const firstCall = (land[0] || mobile[0] || "").replace(/\D/g,"");
+
+  el.innerHTML = `
+    <div class="today-top">
+      <div class="today-left">
+        <small>Hoje • ${dataBR}</small>
+        <h2>${entry.farmacia}</h2>
+
+        <div class="tag-group">
+          <div class="tag">
+            <span class="area-dot ${areaClasse}"></span>
+            Área ${entry.area}
+          </div>
+          <div class="tag tag-now">
+            <span class="pulse-dot"></span>
+            HOJE
+          </div>
+        </div>
+
+        <div class="info-line">📍 ${entry.endereco}</div>
+        <div class="info-line">📞 ${entry.telefone}</div>
+
+        <div class="btn-row">
+          ${firstMobile ? `<a class="btn btn-wpp" href="https://wa.me/55${firstMobile}" target="_blank">WhatsApp</a>` : ""}
+          <a class="btn btn-map" target="_blank"
+             href="https://www.google.com/maps/dir/?api=1&destination=${encodeURIComponent(entry.endereco + ', Patos - PB')}">Ver rota</a>
+          ${firstCall ? `<a class="btn btn-call" href="tel:${firstCall}">Ligar</a>` : ""}
+        </div>
+      </div>
+
+      <div class="today-right">
+        <div class="label">Tempo restante do plantão</div>
+        <div class="value">${texto}</div>
+        <div class="ref">${refTexto}</div>
+      </div>
+    </div>
   `;
 }
-/* ======================================================
-   PRÓXIMOS PLANTÕES
-====================================================== */
+
+/* =========================================================
+   RENDER PRÓXIMOS
+   ========================================================= */
 function renderNext() {
   if (!CACHE_PLANTOES.length) return;
 
   const hoje = new Date().toISOString().split("T")[0];
-  const proximos = CACHE_PLANTOES.filter(p => p.date > hoje).slice(0, 5);
+  const proximos = CACHE_PLANTOES.filter(p => p.date > hoje).slice(0,5);
 
-  document.getElementById("nextList").innerHTML = proximos.map(p => `
-    <div class="next-card">
-      <div>${p.date.split("-").reverse().join("/")}</div>
-      <div>${p.farmacia}</div>
-      <small>${p.endereco}</small>
-    </div>
-  `).join("");
+  document.getElementById("nextList").innerHTML = proximos.map(p => {
+    const d = p.date.split("-").reverse().join("/");
+    const areaClasse = "area-" + p.area;
+    const phones = parsePhones(p.telefone || "");
+    const wpp = phones.mobile[0]?.replace(/\D/g,"");
+
+    return `
+      <article class="next-card">
+        <div class="next-left">
+          <div class="next-date">${d}</div>
+          <div>${p.farmacia}</div>
+          <div class="next-area">
+            <span class="area-dot ${areaClasse}"></span>
+            ${p.area}
+          </div>
+          <small>${p.endereco}</small>
+          <small>${p.telefone}</small>
+        </div>
+
+        <div class="next-actions">
+          ${wpp ? `<a class="action-link" href="https://wa.me/55${wpp}" target="_blank">WhatsApp</a>` : ""}
+          <a class="action-link"
+             href="https://www.google.com/maps/dir/?api=1&destination=${encodeURIComponent(p.endereco + ', Patos - PB')}"
+             target="_blank">Mapa</a>
+        </div>
+      </article>
+    `;
+  }).join("");
 }
-/* ======================================================
-   BOOT (🔥 SINCRONIZA FIREBASE → TELA)
-====================================================== */
+
+/* =========================================================
+   BOOT
+   ========================================================= */
 async function boot() {
   showLoading();
-
   try {
-    const snap = await db.collection("plantoes").orderBy("date").get();
-    CACHE_PLANTOES = snap.docs.map(d => d.data());
-
-    if (!CACHE_PLANTOES.length) throw new Error("Sem dados");
-
+    CACHE_PLANTOES = await window.PlantoesStore.get();
+    if (!CACHE_PLANTOES.length) throw new Error();
     renderToday();
     renderNext();
-
-  } catch (e) {
-    console.error(e);
-    showError("Erro ao carregar dados do Firebase.");
+  } catch {
+    showError("Erro ao carregar dados do plantão.");
   }
 }
 
 boot();
-setInterval(renderToday, 60000);
+setInterval(() => {
+  try { renderToday(); } catch {}
+}, 60000);
 </script>
 </body>
 </html>
