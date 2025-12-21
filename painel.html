@@ -239,13 +239,13 @@ tr:hover {
     </label>
 
     <select id="filtroMes"
-            style="
-              background: var(--card-soft);
-              color: var(--text);
-              border: 1px solid var(--border);
-              border-radius: 8px;
-              padding: 6px 10px;
-            ">
+      style="
+        background: var(--card-soft);
+        color: var(--text);
+        border: 1px solid var(--border);
+        border-radius: 8px;
+        padding: 6px 10px;
+      ">
       <option value="">Todos</option>
     </select>
   </div>
@@ -260,7 +260,7 @@ tr:hover {
         <th></th>
       </tr>
     </thead>
-    <tbody></tbody>
+    <tbody id="listaPlantoes"></tbody>
   </table>
 
 </div>
@@ -291,35 +291,31 @@ tr:hover {
   </div>
 </div>
 
-
 <!-- FIREBASE -->
 <script src="https://www.gstatic.com/firebasejs/10.14.0/firebase-app-compat.js"></script>
-<script src="https://www.gstatic.com/firebasejs/10.14.0/firebase-auth-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.14.0/firebase-firestore-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.14.0/firebase-auth-compat.js"></script>
 
 <script>
-const firebaseConfig = {
-  apiKey: "AIzaSyAhuIJT5TM0hT_m8S3zNEeZNmM8Ei2qOn8",
-  authDomain: "plantoes-patos.firebaseapp.com",
-  projectId: "plantoes-patos",
-  storageBucket: "plantoes-patos.firebasestorage.app",
-  messagingSenderId: "389722424174",
-  appId: "1:389722424174:web:efa844d12dbc48635b377f"
-};
+  firebase.initializeApp({
+    apiKey: "AIzaSyAhuIJT5TM0hT_m8S3zNEeZNmM8Ei2qOn8",
+    authDomain: "plantoes-patos.firebaseapp.com",
+    projectId: "plantoes-patos"
+  });
 
-firebase.initializeApp(firebaseConfig);
-const auth = firebase.auth();
+  const auth = firebase.auth();
 
-auth.onAuthStateChanged(user => {
-  if (!user) window.location.href = "login.html";
-});
+  auth.onAuthStateChanged(user => {
+    if (!user) window.location.href = "login.html";
+  });
 
-function logout() {
-  auth.signOut().then(() => window.location.href = "login.html");
-}
+  function logout() {
+    auth.signOut().then(() => {
+      window.location.href = "login.html";
+    });
+  }
 </script>
 
-<script src="data.js"></script>
 <script src="admin.js"></script>
 
 </body>
