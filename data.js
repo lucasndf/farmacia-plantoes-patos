@@ -1,24 +1,21 @@
 // ======================================================
-// DATA.JS — Leitura pública do Firebase
+// DATA.JS — Leitura pública (Firestore)
 // ======================================================
 
-async function carregarPlantoesFirebase() {
-  const db = firebase.firestore();
-
-  const snap = await db
-    .collection("plantoes")
-    .orderBy("date")
-    .get();
-
-  return snap.docs.map(doc => doc.data());
-}
+const db = firebase.firestore();
 
 window.PlantoesStore = {
   async get() {
     try {
-      return await carregarPlantoesFirebase();
+      const snap = await db
+        .collection("plantoes")
+        .orderBy("date")
+        .get();
+
+      return snap.docs.map(doc => doc.data());
+
     } catch (err) {
-      console.error("Erro Firebase:", err);
+      console.error("Erro Firestore:", err);
       return [];
     }
   }
