@@ -1,17 +1,24 @@
 // ======================================================
-// DATA.JS — Leitura pública (JSON gerado pelo admin)
+// DATA.JS — Leitura pública do Firebase
 // ======================================================
 
-const DATA_URL = "./plantoes.json";
+async function carregarPlantoesFirebase() {
+  const db = firebase.firestore();
+
+  const snap = await db
+    .collection("plantoes")
+    .orderBy("date")
+    .get();
+
+  return snap.docs.map(doc => doc.data());
+}
 
 window.PlantoesStore = {
   async get() {
     try {
-      const res = await fetch(DATA_URL, { cache: "no-store" });
-      if (!res.ok) throw new Error("Erro ao carregar JSON");
-      return await res.json();
+      return await carregarPlantoesFirebase();
     } catch (err) {
-      console.error("Erro ao carregar plantões:", err);
+      console.error("Erro Firebase:", err);
       return [];
     }
   }
