@@ -638,45 +638,66 @@ function parsePhones(raw) {
 }
 
 /* =========================================================
-   TEMPO RESTANTE
+   TEMPO RESTANTE DO PLANTÃO
    ========================================================= */
 function calculaTempoRestanteCorrigido() {
   const agora = new Date();
-  const dia = agora.getDay();
-  const isWeekend = dia === 0 || dia === 6;
+  const dia = agora.getDay(); // 0=Dom, 6=Sáb
+  const isWeekend = (dia === 0 || dia === 6);
 
   const startHour = isWeekend ? 22 : 23;
+  const LIMITE_ANTECIPACAO = 3; // horas antes do plantão
+
+  // INÍCIO DO PLANTÃO
   const inicio = new Date(agora);
   inicio.setHours(startHour, 0, 0, 0);
 
+  // FIM DO PLANTÃO (06h)
   const fim = new Date(agora);
   fim.setHours(6, 0, 0, 0);
 
-  if (agora.getHours() < 6) inicio.setDate(inicio.getDate() - 1);
-  if (agora.getHours() >= startHour) fim.setDate(fim.getDate() + 1);
+  // Se for madrugada, o início foi ontem
+  if (agora.getHours() < 6) {
+    inicio.setDate(inicio.getDate() - 1);
+  }
+
+  // Se já passou do início hoje, o fim é amanhã
+  if (agora.getHours() >= startHour) {
+    fim.setDate(fim.getDate() + 1);
+  }
 
   let texto = "";
 
+  // Antes do plantão
   if (agora < inicio) {
     const diff = inicio - agora;
-    const h = Math.floor(diff / 3600000);
-    const m = Math.floor((diff % 3600000) / 60000);
-    texto = `começa em ${h}h ${String(m).padStart(2,"0")}min`;
-  } else if (agora < fim) {
+    const horas = diff / 3600000;
+
+    if (horas <= LIMITE_ANTECIPACAO) {
+      const h = Math.floor(horas);
+      const m = Math.floor((diff % 3600000) / 60000);
+      texto = `começa em ${h}h ${String(m).padStart(2, "0")}min`;
+    } else {
+      texto = "Plantão encerrado";
+    }
+  }
+  // Durante o plantão
+  else if (agora >= inicio && agora < fim) {
     const diff = fim - agora;
     const h = Math.floor(diff / 3600000);
     const m = Math.floor((diff % 3600000) / 60000);
-    texto = `faltam ${h}h ${String(m).padStart(2,"0")}min`;
-  } else {
+    texto = `faltam ${h}h ${String(m).padStart(2, "0")}min`;
+  }
+  // Após o plantão
+  else {
     texto = "Plantão encerrado";
   }
 
-  return {
-    texto,
-    refTexto: isWeekend
-      ? "Horário de plantão — fim de semana: 22h às 06h"
-      : "Horário de plantão — segunda a sexta: 23h às 06h"
-  };
+  const refTexto = isWeekend
+    ? "Horário de plantão — fim de semana: 22h às 06h"
+    : "Horário de plantão — segunda a sexta: 23h às 06h";
+
+  return { texto, refTexto };
 }
 
 /* =========================================================
